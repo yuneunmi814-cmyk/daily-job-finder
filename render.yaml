@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: daily-job-finder
+    runtime: node
+    plan: free
+    buildCommand: echo "설치할 의존성 없음"
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      # 공공데이터포털에서 발급받은 노인일자리(SenuriService) 인증키.
+      # 값은 Render 대시보드에서 직접 입력한다 (코드나 깃에 올리지 않음).
+      - key: SENURI_KEY
+        sync: false

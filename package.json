@@ -1,0 +1,13 @@
+{
+  "name": "daily-job-finder",
+  "version": "1.0.0",
+  "description": "일용직·공공일자리 모아보기 — 가지 않아도 오늘의 일자리를 한눈에",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

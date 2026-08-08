@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a5c2e">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>일자리 알리미</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    font-size: 20px; line-height: 1.5; color: #111; background: #f5f6f8;
+  }
+  header { background: #1a5c2e; color: #fff; padding: 20px 16px; text-align: center; }
+  header h1 { font-size: 30px; }
+  header p { font-size: 17px; opacity: .9; margin-top: 4px; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+
+  .regions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 8px; }
+  .regions button {
+    font-size: 22px; font-weight: 700; padding: 14px 22px; border-radius: 14px;
+    border: 2px solid #1a5c2e; background: #fff; color: #1a5c2e; cursor: pointer;
+  }
+  .regions button.on { background: #1a5c2e; color: #fff; }
+
+  .searchrow { display: flex; gap: 8px; margin: 10px 0 4px; }
+  .searchrow input {
+    flex: 1; font-size: 21px; padding: 14px; border: 2px solid #bbb; border-radius: 12px; min-width: 0;
+  }
+  .searchrow button {
+    font-size: 21px; font-weight: 700; padding: 14px 20px; border: 0; border-radius: 12px;
+    background: #1a5c2e; color: #fff; cursor: pointer;
+  }
+
+  .notifrow { margin: 10px 0 4px; }
+  .notifrow button {
+    width: 100%; font-size: 20px; font-weight: 700; padding: 13px; border-radius: 12px;
+    border: 2px solid #0b62c4; background: #fff; color: #0b62c4; cursor: pointer;
+  }
+  .notifrow button.on { background: #0b62c4; color: #fff; }
+  .notifrow .hint { font-size: 16px; color: #777; margin-top: 6px; text-align: center; }
+
+  .count { font-size: 18px; color: #555; margin: 12px 2px; }
+
+  .card {
+    background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 14px;
+    border: 1px solid #e2e4e8; cursor: pointer;
+  }
+  .card:active { background: #eef5ef; }
+  .card.city { border-left: 8px solid #1a5c2e; }
+  .card .title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+  .card .meta { font-size: 19px; color: #333; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .badge {
+    display: inline-block; font-size: 16px; font-weight: 700; padding: 3px 10px;
+    border-radius: 8px; background: #e8f4ea; color: #1a5c2e; margin: 0 6px 8px 0;
+  }
+  .badge.visit { background: #fdf1e0; color: #9a6210; }
+  .badge.new { background: #c62828; color: #fff; }
+  .badge.city { background: #1a5c2e; color: #fff; }
+
+  .detail { margin-top: 14px; padding-top: 14px; border-top: 2px dashed #ddd; font-size: 19px; display: none; }
+  .detail dl { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; }
+  .detail dt { font-weight: 700; color: #666; }
+  .detail .body { white-space: pre-wrap; background: #f7f8fa; padding: 14px; border-radius: 12px; font-size: 18px; }
+  .callbtn, .linkbtn {
+    display: block; text-align: center; margin-top: 12px; padding: 16px;
+    font-size: 22px; font-weight: 800; border-radius: 14px; text-decoration: none;
+  }
+  .callbtn { background: #0b62c4; color: #fff; }
+  .linkbtn { background: #fff; color: #1a5c2e; border: 2px solid #1a5c2e; }
+  .loading, .empty { text-align: center; padding: 40px 0; color: #666; font-size: 21px; }
+  footer { text-align: center; color: #888; font-size: 15px; padding: 24px 16px; line-height: 1.7; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧑‍🌾 일자리 알리미</h1>
+  <p>가지 않아도, 오늘의 일자리를 한눈에</p>
+</header>
+<main>
+  <div class="regions" id="regions"></div>
+  <div class="searchrow">
+    <input id="q" type="text" placeholder="지역이나 일 이름 입력 (예: 미화)">
+    <button onclick="search()">찾기</button>
+  </div>
+  <div class="notifrow">
+    <button id="notifBtn" onclick="toggleNotif()">🔔 새 일자리 알림 켜기</button>
+    <div class="hint" id="notifHint"></div>
+  </div>
+  <div class="count" id="count"></div>
+  <div id="list"><div class="loading">불러오는 중…</div></div>
+</main>
+<footer>
+  자료 출처: 제천·단양·충주·원주·영월·영주·문경·음성·진천·괴산·평창·정선 시군청 고시·공고 · 한국노인인력개발원(노인일자리여기)<br>
+  공고 내용은 반드시 원문과 전화로 확인해 주세요.
+</footer>
+
+<script>
+const REGIONS = ['제천', '단양', '충주', '원주', '영월', '충북', '전국'];
+const POLL_MS = 10 * 60 * 1000;
+let currentRegion = localStorage.getItem('region') || '제천';
+let pollTimer = null;
+
+function getSeen() {
+  try { return new Set(JSON.parse(localStorage.getItem('seenJobs') || '[]')); }
+  catch (e) { return new Set(); }
+}
+function addSeen(ids) {
+  const seen = getSeen();
+  ids.forEach(id => seen.add(id));
+  localStorage.setItem('seenJobs', JSON.stringify([...seen].slice(-5000)));
+}
+const firstVisit = !localStorage.getItem('seenJobs');
+
+function currentQuery() {
+  if (currentRegion) return currentRegion === '전국' ? '' : currentRegion;
+  return document.getElementById('q').value.trim();
+}
+
+function fmtDate(s) {
+  if (!s || s.length !== 8) return '';
+  return `${+s.slice(4, 6)}월 ${+s.slice(6, 8)}일`;
+}
+function esc(s) {
+  return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function renderRegions() {
+  document.getElementById('regions').innerHTML = REGIONS.map(r =>
+    `<button class="${r === currentRegion ? 'on' : ''}" onclick="pickRegion('${r}')">${r}</button>`
+  ).join('');
+}
+
+function pickRegion(r) {
+  currentRegion = r;
+  localStorage.setItem('region', r);
+  document.getElementById('q').value = '';
+  renderRegions();
+  load();
+}
+
+function search() {
+  currentRegion = '';
+  renderRegions();
+  load();
+}
+
+const fetchJobs = q => fetch('/api/jobs?q=' + encodeURIComponent(q)).then(r => r.json());
+
+async function load() {
+  const list = document.getElementById('list');
+  document.getElementById('count').textContent = '';
+  list.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try {
+    const data = await fetchJobs(currentQuery());
+    const seen = getSeen();
+    const c = data.counts || {};
+    document.getElementById('count').textContent =
+      `접수 중인 일자리 ${data.total}건` +
+      (c.city ? ` (시청 공고 ${c.city}건 · 노인일자리 ${c.senuri}건)` : '') +
+      (data.total > 200 ? ' — 최근 200건 표시' : '');
+
+    if (!data.jobs.length) {
+      list.innerHTML = '<div class="empty">지금 접수 중인 일자리가 없어요.<br>다른 지역을 눌러보세요.</div>';
+      return;
+    }
+    list.innerHTML = data.jobs.map(j => {
+      const isNew = !firstVisit && !seen.has(j.id);
+      const city = j.src !== 'senuri';
+      return `
+      <div class="card ${city ? 'city' : ''}" onclick="toggleDetail(this, '${j.id}')">
+        ${isNew ? '<span class="badge new">🆕 새 공고</span>' : ''}
+        ${city ? '<span class="badge city">🏛 시청 공고</span>' : ''}
+        ${j.acpt ? `<span class="badge ${j.acpt === '방문' ? 'visit' : ''}">${esc(j.acpt)} 접수</span>` : ''}
+        <div class="title">${esc(j.title)}</div>
+        <div class="meta">
+          <span>📍 ${esc(j.place || '지역 미표기')}</span>
+          <span>🏢 ${esc(j.org)}${j.dept ? ' ' + esc(j.dept) : ''}</span>
+          ${j.endDd ? `<span>⏰ ${fmtDate(j.endDd)}까지</span>` : (city ? '<span>⏰ 마감일은 공고문 확인</span>' : '')}
+        </div>
+        <div class="detail"></div>
+      </div>`;
+    }).join('');
+    addSeen(data.jobs.map(j => j.id));
+  } catch (e) {
+    list.innerHTML = '<div class="empty">불러오지 못했어요. 잠시 후 다시 시도해주세요.</div>';
+  }
+}
+
+async function toggleDetail(card, id) {
+  const box = card.querySelector('.detail');
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  if (box.dataset.loaded) return;
+  box.innerHTML = '<div class="loading">자세한 내용 불러오는 중…</div>';
+  try {
+    const { job } = await fetch('/api/job?id=' + encodeURIComponent(id)).then(r => r.json());
+    if (!job) { box.innerHTML = '상세 정보가 없어요.'; return; }
+
+    let html = '';
+    if (job.src !== 'senuri') {
+      html = `<div class="body">${esc(job.desc)}</div>`;
+      if (job.link) html += `<a class="linkbtn" href="${esc(job.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 공고 원문 보기 (첨부파일)</a>`;
+    } else {
+      const rows = [
+        ['근무지 주소', job.plDetAddr],
+        ['사업장', job.plbizNm],
+        ['담당자', job.clerk],
+        ['모집 연령', job.age ? job.age + '세 이상' : ''],
+        ['접수 기간', job.frAcptDd ? `${fmtDate(job.frAcptDd)} ~ ${fmtDate(job.toAcptDd)}` : ''],
+        ['참고', job.etcItm],
+      ].filter(r => r[1]);
+      html = '<dl>' + rows.map(r => `<dt>${r[0]}</dt><dd>${esc(r[1])}</dd>`).join('') + '</dl>';
+    }
+    if (job.phones && job.phones.length) {
+      html += job.phones.map(p =>
+        `<a class="callbtn" href="tel:${esc(p)}" onclick="event.stopPropagation()">📞 전화 걸기 ${esc(p)}</a>`).join('');
+    }
+    box.innerHTML = html;
+    box.dataset.loaded = '1';
+  } catch (e) {
+    box.innerHTML = '상세 정보를 불러오지 못했어요.';
+  }
+}
+
+// ---- 새 공고 알림 (화면이 켜져 있는 동안 10분마다 확인) ----
+function renderNotifBtn() {
+  const on = localStorage.getItem('notif') === 'on' && window.Notification && Notification.permission === 'granted';
+  const btn = document.getElementById('notifBtn');
+  btn.className = on ? 'on' : '';
+  btn.textContent = on ? '🔔 새 일자리 알림 켜짐 (끄려면 누르세요)' : '🔔 새 일자리 알림 켜기';
+  document.getElementById('notifHint').textContent =
+    on ? '이 화면이 열려 있는 동안 10분마다 새 공고를 확인해요.' : '';
+  clearInterval(pollTimer);
+  if (on) pollTimer = setInterval(checkNew, POLL_MS);
+}
+
+async function toggleNotif() {
+  if (!('Notification' in window)) {
+    document.getElementById('notifHint').textContent = '이 브라우저는 알림을 지원하지 않아요.';
+    return;
+  }
+  if (localStorage.getItem('notif') === 'on') {
+    localStorage.setItem('notif', 'off');
+  } else {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') {
+      document.getElementById('notifHint').textContent = '브라우저 알림 허용을 눌러주셔야 알림이 와요.';
+      return;
+    }
+    localStorage.setItem('notif', 'on');
+  }
+  renderNotifBtn();
+}
+
+async function checkNew() {
+  try {
+    const data = await fetchJobs(currentQuery());
+    const seen = getSeen();
+    const fresh = data.jobs.filter(j => !seen.has(j.id));
+    if (fresh.length) {
+      new Notification(`새 일자리 ${fresh.length}건`, {
+        body: fresh[0].title + (fresh.length > 1 ? ` 외 ${fresh.length - 1}건` : ''),
+        icon: '/icon.svg',
+      });
+      load();
+    }
+  } catch (e) { /* 다음 주기에 재시도 */ }
+}
+
+renderRegions();
+renderNotifBtn();
+load();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => { /* 없어도 앱은 동작 */ });
+}
+</script>
+</body>
+</html>
