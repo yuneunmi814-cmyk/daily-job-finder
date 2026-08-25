@@ -40,9 +40,9 @@
   .notifrow { margin: 10px 0 4px; }
   .notifrow button {
     width: 100%; font-size: 20px; font-weight: 700; padding: 13px; border-radius: 12px;
-    border: 2px solid #0b62c4; background: #fff; color: #0b62c4; cursor: pointer;
+    border: 2px solid #1a5c2e; background: #fff; color: #1a5c2e; cursor: pointer;
   }
-  .notifrow button.on { background: #0b62c4; color: #fff; }
+  .notifrow button.on { background: #1a5c2e; color: #fff; }
   .notifrow .hint { font-size: 16px; color: #777; margin-top: 6px; text-align: center; }
 
   .count { font-size: 18px; color: #555; margin: 12px 2px; }
@@ -71,15 +71,41 @@
     display: block; text-align: center; margin-top: 12px; padding: 16px;
     font-size: 22px; font-weight: 800; border-radius: 14px; text-decoration: none;
   }
-  .callbtn { background: #0b62c4; color: #fff; }
+  .callbtn { background: #1a5c2e; color: #fff; }
   .linkbtn { background: #fff; color: #1a5c2e; border: 2px solid #1a5c2e; }
   .loading, .empty { text-align: center; padding: 40px 0; color: #666; font-size: 21px; }
   footer { text-align: center; color: #888; font-size: 15px; padding: 24px 16px; line-height: 1.7; }
+
+:root{
+  --ico-pin:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z'/%3E%3Ccircle cx='12' cy='10' r='2.6'/%3E%3C/svg%3E");
+  --ico-org:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 21h18M5 21V9l7-4 7 4v12M9.5 21v-5h5v5'/%3E%3Cpath d='M8.5 12h1M14.5 12h1'/%3E%3C/svg%3E");
+  --ico-clock:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='8.5'/%3E%3Cpath d='M12 7.5V12l3 2'/%3E%3C/svg%3E");
+  --ico-bell:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 8.5a6 6 0 1 0-12 0c0 6-2 7.5-2 7.5h16s-2-1.5-2-7.5z'/%3E%3Cpath d='M10.3 19.5a2 2 0 0 0 3.4 0'/%3E%3C/svg%3E");
+  --ico-doc:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.5 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8.5z'/%3E%3Cpath d='M13.5 3v5.5H19M8.5 13h7M8.5 16.5h5'/%3E%3C/svg%3E");
+  --ico-phone:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16.9v2.6a1.7 1.7 0 0 1-1.9 1.7 17 17 0 0 1-7.4-2.6 16.6 16.6 0 0 1-5.1-5.1A17 17 0 0 1 4 6a1.7 1.7 0 0 1 1.7-1.9h2.6a1.7 1.7 0 0 1 1.7 1.5c.1.9.3 1.7.6 2.5a1.7 1.7 0 0 1-.4 1.8L9.1 11a13.6 13.6 0 0 0 5.1 5.1l1.1-1.1a1.7 1.7 0 0 1 1.8-.4c.8.3 1.6.5 2.5.6a1.7 1.7 0 0 1 1.4 1.7z'/%3E%3C/svg%3E");
+  --ico-leaf:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21v-8'/%3E%3Cpath d='M12 13c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6z'/%3E%3Cpath d='M12 15c0-2.8-2.2-5-5-5 0 2.8 2.2 5 5 5z'/%3E%3C/svg%3E");
+}
+  /* 이모지는 기기·OS마다 다르게 그려져서 디자인이 될 수 없다.
+     마스크로 넣고 색은 currentColor를 따라가게 해서, 글자색이 바뀌면 아이콘도 같이 바뀐다. */
+  .ico{
+    display:inline-block; width:1em; height:1em; vertical-align:-.12em;
+    background:currentColor; flex:none;
+    -webkit-mask-size:contain; mask-size:contain;
+    -webkit-mask-repeat:no-repeat; mask-repeat:no-repeat;
+    -webkit-mask-position:center; mask-position:center;
+  }
+  .ico-pin{-webkit-mask-image:var(--ico-pin);mask-image:var(--ico-pin);}
+  .ico-org{-webkit-mask-image:var(--ico-org);mask-image:var(--ico-org);}
+  .ico-clock{-webkit-mask-image:var(--ico-clock);mask-image:var(--ico-clock);}
+  .ico-bell{-webkit-mask-image:var(--ico-bell);mask-image:var(--ico-bell);}
+  .ico-doc{-webkit-mask-image:var(--ico-doc);mask-image:var(--ico-doc);}
+  .ico-phone{-webkit-mask-image:var(--ico-phone);mask-image:var(--ico-phone);}
+  .ico-leaf{-webkit-mask-image:var(--ico-leaf);mask-image:var(--ico-leaf);}
 </style>
 </head>
 <body>
 <header>
-  <h1>🧑‍🌾 일자리 알리미</h1>
+  <h1><i class="ico ico-leaf"></i> 일자리 알리미</h1>
   <p>가지 않아도, 오늘의 일자리를 한눈에</p>
 </header>
 <main>
@@ -90,7 +116,7 @@
     <button onclick="search()">찾기</button>
   </div>
   <div class="notifrow">
-    <button id="notifBtn" onclick="toggleNotif()">🔔 새 일자리 알림 켜기</button>
+    <button id="notifBtn" onclick="toggleNotif()"><i class="ico ico-bell"></i> 새 일자리 알림 켜기</button>
     <div class="hint" id="notifHint"></div>
   </div>
   <div class="count" id="count"></div>
@@ -113,6 +139,19 @@ let currentSigun = localStorage.getItem('sigun') || '';
 // 시도 17개를 다 펼쳐두면 첫 화면이 버튼으로 꽉 차서 공고가 안 보인다.
 // 처음 온 사람에게만 펼쳐 보여주고, 한 번 고르고 나면 접어둔다.
 let sidoOpen = !localStorage.getItem('sido');
+
+// 주소에 ?sido=충북&sigun=제천시 를 붙이면 그 지역으로 열린다.
+// (특정 지역 공고 링크를 그대로 보내줄 수 있게)
+(function readLink() {
+  const p = new URLSearchParams(location.search);
+  const sido = p.get('sido'), sigun = p.get('sigun');
+  if (!sido) return;
+  currentSido = sido;
+  currentSigun = sigun || '';
+  sidoOpen = false;
+  localStorage.setItem('sido', currentSido);
+  localStorage.setItem('sigun', currentSigun);
+})();
 let pollTimer = null;
 
 function getSeen() {
@@ -213,14 +252,14 @@ async function load() {
       const city = j.src !== 'senuri';
       return `
       <div class="card ${city ? 'city' : ''}" onclick="toggleDetail(this, '${j.id}')">
-        ${isNew ? '<span class="badge new">🆕 새 공고</span>' : ''}
-        ${city ? '<span class="badge city">🏛 시청 공고</span>' : ''}
+        ${isNew ? '<span class="badge new">새 공고</span>' : ''}
+        ${city ? '<span class="badge city">시청 공고</span>' : ''}
         ${j.acpt ? `<span class="badge ${j.acpt === '방문' ? 'visit' : ''}">${esc(j.acpt)} 접수</span>` : ''}
         <div class="title">${esc(j.title)}</div>
         <div class="meta">
-          <span>📍 ${esc(j.place || '지역 미표기')}</span>
-          <span>🏢 ${esc(j.org)}${j.dept ? ' ' + esc(j.dept) : ''}</span>
-          ${j.endDd ? `<span>⏰ ${fmtDate(j.endDd)}까지</span>` : (city ? '<span>⏰ 마감일은 공고문 확인</span>' : '')}
+          <span><i class="ico ico-pin"></i> ${esc(j.place || '지역 미표기')}</span>
+          <span><i class="ico ico-org"></i> ${esc(j.org)}${j.dept ? ' ' + esc(j.dept) : ''}</span>
+          ${j.endDd ? `<span><i class="ico ico-clock"></i> ${fmtDate(j.endDd)}까지</span>` : (city ? '<span><i class="ico ico-clock"></i> 마감일은 공고문 확인</span>' : '')}
         </div>
         <div class="detail"></div>
       </div>`;
@@ -244,7 +283,7 @@ async function toggleDetail(card, id) {
     let html = '';
     if (job.src !== 'senuri') {
       html = `<div class="body">${esc(job.desc)}</div>`;
-      if (job.link) html += `<a class="linkbtn" href="${esc(job.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📄 공고 원문 보기 (첨부파일)</a>`;
+      if (job.link) html += `<a class="linkbtn" href="${esc(job.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><i class="ico ico-doc"></i> 공고 원문 보기 (첨부파일)</a>`;
     } else {
       const rows = [
         ['근무지 주소', job.plDetAddr],
@@ -258,7 +297,7 @@ async function toggleDetail(card, id) {
     }
     if (job.phones && job.phones.length) {
       html += job.phones.map(p =>
-        `<a class="callbtn" href="tel:${esc(p)}" onclick="event.stopPropagation()">📞 전화 걸기 ${esc(p)}</a>`).join('');
+        `<a class="callbtn" href="tel:${esc(p)}" onclick="event.stopPropagation()"><i class="ico ico-phone"></i> 전화 걸기 ${esc(p)}</a>`).join('');
     }
     box.innerHTML = html;
     box.dataset.loaded = '1';
@@ -272,7 +311,8 @@ function renderNotifBtn() {
   const on = localStorage.getItem('notif') === 'on' && window.Notification && Notification.permission === 'granted';
   const btn = document.getElementById('notifBtn');
   btn.className = on ? 'on' : '';
-  btn.textContent = on ? '🔔 새 일자리 알림 켜짐 (끄려면 누르세요)' : '🔔 새 일자리 알림 켜기';
+  // 아이콘이 태그라서 textContent로 넣으면 태그가 글자로 보인다
+  btn.innerHTML = '<i class="ico ico-bell"></i> ' + (on ? '새 일자리 알림 켜짐 (끄려면 누르세요)' : '새 일자리 알림 켜기');
   document.getElementById('notifHint').textContent =
     on ? '이 화면이 열려 있는 동안 10분마다 새 공고를 확인해요.' : '';
   clearInterval(pollTimer);
