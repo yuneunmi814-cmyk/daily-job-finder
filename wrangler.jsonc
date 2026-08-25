@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "daily-job-finder",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-08-25",
+  "observability": { "enabled": true },
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+
+  // 공고 데이터는 GitHub Actions가 수집해서 여기에 넣어준다 (키: jobs:latest)
+  "kv_namespaces": [
+    { "binding": "JOBS", "id": "2317d8a525f34a0f9694a1d22d4cb1b0" }
+  ]
+}

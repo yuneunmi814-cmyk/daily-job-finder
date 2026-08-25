@@ -1,0 +1,54 @@
+# 전국 시·군청 공고와 노인일자리를 정해진 시각에 모아서 Cloudflare KV에 넣는다.
+# 웹사이트(Worker)는 KV에 있는 걸 보여주기만 하므로, 이 작업이 곧 데이터 갱신이다.
+#
+# 왜 Worker가 직접 수집하지 않나:
+# 시군 92곳을 도는 데 외부 요청이 수천 건 필요한데, Worker 한 번 실행에 허용된 요청 수로는 안 된다.
+name: 공고 수집
+
+on:
+  schedule:
+    # UTC 기준. 한국시간 06:00 / 12:00 / 18:00
+    - cron: '0 21 * * *'
+    - cron: '0 3 * * *'
+    - cron: '0 9 * * *'
+  workflow_dispatch:        # 필요할 때 수동 실행
+
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # 지난번 결과를 받아둔다. 공고 상세는 한 건당 요청 1회라,
+      # 이미 받아둔 건 다시 안 받으면 수집 시간이 크게 줄어든다.
+      - name: 지난번 결과 내려받기
+        run: |
+          npx --yes wrangler@4 kv key get "jobs:latest" --binding JOBS --remote > prev.json 2>/dev/null \
+            || echo '{}' > prev.json
+          echo "prev.json $(wc -c < prev.json) bytes"
+
+      - name: 공고 수집
+        env:
+          SENURI_KEY: ${{ secrets.SENURI_KEY }}
+          CRAWL_OUT: jobs.json
+          CRAWL_PREV: prev.json
+        run: node server.js
+
+      # 수집이 실패하면 여기까지 오지 않으므로, 기존 데이터가 빈 값으로 덮이지 않는다.
+      - name: Cloudflare KV에 올리기
+        run: npx --yes wrangler@4 kv key put "jobs:latest" --path jobs.json --binding JOBS --remote
+
+      - name: 결과 요약
+        run: node -e "const d=require('./jobs.json');console.log(JSON.stringify(d.stats))" >> $GITHUB_STEP_SUMMARY

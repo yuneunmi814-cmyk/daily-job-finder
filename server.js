@@ -24,6 +24,10 @@ const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 const PAGES = 10;         // 노인일자리: 최근 10,000건 (일 트래픽 10,000건 한도 내)
 const CACHE_MS = 10 * 60 * 1000;
+// 전국 91개 시군을 돌기 때문에, 시군 한 곳당 보는 공고 수와 동시 요청 수를 묶어둔다.
+// (묶지 않으면 상세 요청이 수천 건이 되어 수집이 끝나지 않는다)
+const MAX_ROWS_PER_CITY = Number(process.env.MAX_ROWS_PER_CITY || 40);
+const CITY_CONCURRENCY  = Number(process.env.CITY_CONCURRENCY  || 6);
 const PORT = process.env.PORT || 3465;
 
 const PHONE_RE = /(?<!\d)0(?:2|1[016789]|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g;
@@ -69,6 +73,9 @@ const SIDO_SHORT = {
   경기도: '경기', 강원특별자치도: '강원', 강원도: '강원', 충청북도: '충북', 충청남도: '충남',
   전북특별자치도: '전북', 전라북도: '전북', 전라남도: '전남', 경상북도: '경북', 경상남도: '경남',
   제주특별자치도: '제주',
+  // 노인일자리 API가 실제로 내려주는 값. 함평군·광산구가 모두 이 이름으로 오는데,
+  // 시군청 공고 쪽은 '전남 ○○'으로 오므로 지역 필터가 갈라지지 않게 '전남'으로 맞춘다.
+  전남광주통합특별시: '전남',
 };
 
 // "27161 충청북도 제천시 용두대로23길 14" -> "충북 제천시"
@@ -185,6 +192,7 @@ const CITIES = [
 // "게재 중인 공고만" 골라 받을 수 있어서, 접수 마감된 공고가 애초에 안 넘어온다.
 // 제천에서 통근 가능한 거리 순. host 만 추가하면 다른 시군도 바로 붙는다.
 const EMINWON_CITIES = [
+  // --- 초기 11곳 (prefix는 기존 공고 ID 유지를 위해 그대로 둔다) ---
   { key: 'danyang',   prefix: 'dy',  org: '단양군청', place: '충북 단양군', host: 'eminwon.danyang.go.kr' },
   { key: 'chungju',   prefix: 'cj',  org: '충주시청', place: '충북 충주시', host: 'eminwon.chungju.go.kr' },
   { key: 'wonju',     prefix: 'wj',  org: '원주시청', place: '강원 원주시', host: 'eminwon.wonju.go.kr' },
@@ -196,6 +204,87 @@ const EMINWON_CITIES = [
   { key: 'goesan',    prefix: 'gs',  org: '괴산군청', place: '충북 괴산군', host: 'eminwon.goesan.go.kr' },
   { key: 'pyeongchang', prefix: 'pc', org: '평창군청', place: '강원 평창군', host: 'eminwon.pc.go.kr' },
   { key: 'jeongseon', prefix: 'jsn', org: '정선군청', place: '강원 정선군', host: 'eminwon.jeongseon.go.kr' },
+  // --- 전국 확대분 80곳 (2026-08-25, DNS+실제 목록 파싱으로 검증) ---
+  { key: 'ansan', prefix: 'ansan', org: '안산시청', place: '경기 안산시', host: 'eminwon.ansan.go.kr' },
+  { key: 'anseong', prefix: 'anseong', org: '안성시청', place: '경기 안성시', host: 'eminwon.anseong.go.kr' },
+  { key: 'anyang', prefix: 'anyang', org: '안양시청', place: '경기 안양시', host: 'eminwon.anyang.go.kr' },
+  { key: 'asan', prefix: 'asan', org: '아산시청', place: '충남 아산시', host: 'eminwon.asan.go.kr' },
+  { key: 'boeun', prefix: 'boeun', org: '보은군청', place: '충북 보은군', host: 'eminwon.boeun.go.kr' },
+  { key: 'boseong', prefix: 'boseong', org: '보성군청', place: '전남 보성군', host: 'eminwon.boseong.go.kr' },
+  { key: 'buan', prefix: 'buan', org: '부안군청', place: '전북 부안군', host: 'eminwon.buan.go.kr' },
+  { key: 'buyeo', prefix: 'buyeo', org: '부여군청', place: '충남 부여군', host: 'eminwon.buyeo.go.kr' },
+  { key: 'changwon', prefix: 'changwon', org: '창원시청', place: '경남 창원시', host: 'eminwon.changwon.go.kr' },
+  { key: 'cheongdo', prefix: 'cheongdo', org: '청도군청', place: '경북 청도군', host: 'eminwon.cheongdo.go.kr' },
+  { key: 'cheongyang', prefix: 'cheongyang', org: '청양군청', place: '충남 청양군', host: 'eminwon.cheongyang.go.kr' },
+  { key: 'dangjin', prefix: 'dangjin', org: '당진시청', place: '충남 당진시', host: 'eminwon.dangjin.go.kr' },
+  { key: 'gangjin', prefix: 'gangjin', org: '강진군청', place: '전남 강진군', host: 'eminwon.gangjin.go.kr' },
+  { key: 'gangneung', prefix: 'gangneung', org: '강릉시청', place: '강원 강릉시', host: 'eminwon.gangneung.go.kr' },
+  { key: 'geochang', prefix: 'geochang', org: '거창군청', place: '경남 거창군', host: 'eminwon.geochang.go.kr' },
+  { key: 'gimje', prefix: 'gimje', org: '김제시청', place: '전북 김제시', host: 'eminwon.gimje.go.kr' },
+  { key: 'gjcity', prefix: 'gjcity', org: '광주시청', place: '경기 광주시', host: 'eminwon.gjcity.go.kr' },
+  { key: 'goheung', prefix: 'goheung', org: '고흥군청', place: '전남 고흥군', host: 'eminwon.goheung.go.kr' },
+  { key: 'gongju', prefix: 'gongju', org: '공주시청', place: '충남 공주시', host: 'eminwon.gongju.go.kr' },
+  { key: 'goryeong', prefix: 'goryeong', org: '고령군청', place: '경북 고령군', host: 'eminwon.goryeong.go.kr' },
+  { key: 'goyang', prefix: 'goyang', org: '고양시청', place: '경기 고양시', host: 'eminwon.goyang.go.kr' },
+  { key: 'gunpo', prefix: 'gunpo', org: '군포시청', place: '경기 군포시', host: 'eminwon.gunpo.go.kr' },
+  { key: 'gunsan', prefix: 'gunsan', org: '군산시청', place: '전북 군산시', host: 'eminwon.gunsan.go.kr' },
+  { key: 'gunwi', prefix: 'gunwi', org: '군위군청', place: '대구 군위군', host: 'eminwon.gunwi.go.kr' },
+  { key: 'guri', prefix: 'guri', org: '구리시청', place: '경기 구리시', host: 'eminwon.guri.go.kr' },
+  { key: 'gurye', prefix: 'gurye', org: '구례군청', place: '전남 구례군', host: 'eminwon.gurye.go.kr' },
+  { key: 'gwangyang', prefix: 'gwangyang', org: '광양시청', place: '전남 광양시', host: 'eminwon.gwangyang.go.kr' },
+  { key: 'gwgs', prefix: 'gwgs', org: '고성군청', place: '강원 고성군', host: 'eminwon.gwgs.go.kr' },
+  { key: 'gyeryong', prefix: 'gyeryong', org: '계룡시청', place: '충남 계룡시', host: 'eminwon.gyeryong.go.kr' },
+  { key: 'hadong', prefix: 'hadong', org: '하동군청', place: '경남 하동군', host: 'eminwon.hadong.go.kr' },
+  { key: 'haenam', prefix: 'haenam', org: '해남군청', place: '전남 해남군', host: 'eminwon.haenam.go.kr' },
+  { key: 'haman', prefix: 'haman', org: '함안군청', place: '경남 함안군', host: 'eminwon.haman.go.kr' },
+  { key: 'hampyeong', prefix: 'hampyeong', org: '함평군청', place: '전남 함평군', host: 'eminwon.hampyeong.go.kr' },
+  { key: 'hanam', prefix: 'hanam', org: '하남시청', place: '경기 하남시', host: 'eminwon.hanam.go.kr' },
+  { key: 'hongcheon', prefix: 'hongcheon', org: '홍천군청', place: '강원 홍천군', host: 'eminwon.hongcheon.go.kr' },
+  { key: 'hongseong', prefix: 'hongseong', org: '홍성군청', place: '충남 홍성군', host: 'eminwon.hongseong.go.kr' },
+  { key: 'hwasun', prefix: 'hwasun', org: '화순군청', place: '전남 화순군', host: 'eminwon.hwasun.go.kr' },
+  { key: 'icheon', prefix: 'icheon', org: '이천시청', place: '경기 이천시', host: 'eminwon.icheon.go.kr' },
+  { key: 'iksan', prefix: 'iksan', org: '익산시청', place: '전북 익산시', host: 'eminwon.iksan.go.kr' },
+  { key: 'imsil', prefix: 'imsil', org: '임실군청', place: '전북 임실군', host: 'eminwon.imsil.go.kr' },
+  { key: 'jangheung', prefix: 'jangheung', org: '장흥군청', place: '전남 장흥군', host: 'eminwon.jangheung.go.kr' },
+  { key: 'jangseong', prefix: 'jangseong', org: '장성군청', place: '전남 장성군', host: 'eminwon.jangseong.go.kr' },
+  { key: 'jangsu', prefix: 'jangsu', org: '장수군청', place: '전북 장수군', host: 'eminwon.jangsu.go.kr' },
+  { key: 'jeongeup', prefix: 'jeongeup', org: '정읍시청', place: '전북 정읍시', host: 'eminwon.jeongeup.go.kr' },
+  { key: 'jinan', prefix: 'jinan', org: '진안군청', place: '전북 진안군', host: 'eminwon.jinan.go.kr' },
+  { key: 'jindo', prefix: 'jindo', org: '진도군청', place: '전남 진도군', host: 'eminwon.jindo.go.kr' },
+  { key: 'miryang', prefix: 'miryang', org: '밀양시청', place: '경남 밀양시', host: 'eminwon.miryang.go.kr' },
+  { key: 'mokpo', prefix: 'mokpo', org: '목포시청', place: '전남 목포시', host: 'eminwon.mokpo.go.kr' },
+  { key: 'muan', prefix: 'muan', org: '무안군청', place: '전남 무안군', host: 'eminwon.muan.go.kr' },
+  { key: 'muju', prefix: 'muju', org: '무주군청', place: '전북 무주군', host: 'eminwon.muju.go.kr' },
+  { key: 'naju', prefix: 'naju', org: '나주시청', place: '전남 나주시', host: 'eminwon.naju.go.kr' },
+  { key: 'namhae', prefix: 'namhae', org: '남해군청', place: '경남 남해군', host: 'eminwon.namhae.go.kr' },
+  { key: 'namwon', prefix: 'namwon', org: '남원시청', place: '전북 남원시', host: 'eminwon.namwon.go.kr' },
+  { key: 'osan', prefix: 'osan', org: '오산시청', place: '경기 오산시', host: 'eminwon.osan.go.kr' },
+  { key: 'paju', prefix: 'paju', org: '파주시청', place: '경기 파주시', host: 'eminwon.paju.go.kr' },
+  { key: 'sancheong', prefix: 'sancheong', org: '산청군청', place: '경남 산청군', host: 'eminwon.sancheong.go.kr' },
+  { key: 'sangju', prefix: 'sangju', org: '상주시청', place: '경북 상주시', host: 'eminwon.sangju.go.kr' },
+  { key: 'seocheon', prefix: 'seocheon', org: '서천군청', place: '충남 서천군', host: 'eminwon.seocheon.go.kr' },
+  { key: 'seogwipo', prefix: 'seogwipo', org: '서귀포시청', place: '제주 서귀포시', host: 'eminwon.seogwipo.go.kr' },
+  { key: 'seosan', prefix: 'seosan', org: '서산시청', place: '충남 서산시', host: 'eminwon.seosan.go.kr' },
+  { key: 'shinan', prefix: 'shinan', org: '신안군청', place: '전남 신안군', host: 'eminwon.shinan.go.kr' },
+  { key: 'siheung', prefix: 'siheung', org: '시흥시청', place: '경기 시흥시', host: 'eminwon.siheung.go.kr' },
+  { key: 'suncheon', prefix: 'suncheon', org: '순천시청', place: '전남 순천시', host: 'eminwon.suncheon.go.kr' },
+  { key: 'suwon', prefix: 'suwon', org: '수원시청', place: '경기 수원시', host: 'eminwon.suwon.go.kr' },
+  { key: 'taean', prefix: 'taean', org: '태안군청', place: '충남 태안군', host: 'eminwon.taean.go.kr' },
+  { key: 'uiryeong', prefix: 'uiryeong', org: '의령군청', place: '경남 의령군', host: 'eminwon.uiryeong.go.kr' },
+  { key: 'uiwang', prefix: 'uiwang', org: '의왕시청', place: '경기 의왕시', host: 'eminwon.uiwang.go.kr' },
+  { key: 'uljin', prefix: 'uljin', org: '울진군청', place: '경북 울진군', host: 'eminwon.uljin.go.kr' },
+  { key: 'ulleung', prefix: 'ulleung', org: '울릉군청', place: '경북 울릉군', host: 'eminwon.ulleung.go.kr' },
+  { key: 'wando', prefix: 'wando', org: '완도군청', place: '전남 완도군', host: 'eminwon.wando.go.kr' },
+  { key: 'wanju', prefix: 'wanju', org: '완주군청', place: '전북 완주군', host: 'eminwon.wanju.go.kr' },
+  { key: 'yanggu', prefix: 'yanggu', org: '양구군청', place: '강원 양구군', host: 'eminwon.yanggu.go.kr' },
+  { key: 'yangju', prefix: 'yangju', org: '양주시청', place: '경기 양주시', host: 'eminwon.yangju.go.kr' },
+  { key: 'yangyang', prefix: 'yangyang', org: '양양군청', place: '강원 양양군', host: 'eminwon.yangyang.go.kr' },
+  { key: 'yeoju', prefix: 'yeoju', org: '여주시청', place: '경기 여주시', host: 'eminwon.yeoju.go.kr' },
+  { key: 'yeoncheon', prefix: 'yeoncheon', org: '연천군청', place: '경기 연천군', host: 'eminwon.yeoncheon.go.kr' },
+  { key: 'yeongam', prefix: 'yeongam', org: '영암군청', place: '전남 영암군', host: 'eminwon.yeongam.go.kr' },
+  { key: 'yesan', prefix: 'yesan', org: '예산군청', place: '충남 예산군', host: 'eminwon.yesan.go.kr' },
+  { key: 'yongin', prefix: 'yongin', org: '용인시청', place: '경기 용인시', host: 'eminwon.yongin.go.kr' },
+  { key: 'yp21', prefix: 'yp21', org: '양평군청', place: '경기 양평군', host: 'eminwon.yp21.go.kr' },
 ];
 
 // 한 번 받은 공고 상세는 바뀌지 않으므로 계속 재사용한다 (시군이 많아 매번 다시 받으면 부담이 크다)
@@ -268,7 +357,10 @@ async function fetchEminwon(cfg) {
   const today = ymd(new Date());
 
   const jobs = [];
-  for (const r of rows) {                       // 보통 몇 건뿐이라 순차로 충분하다
+  // 상세 페이지는 한 건당 요청 1회다. 목록 제목만 보고 공고가 아닌 글을 먼저 버리고,
+  // 최근 MAX_ROWS_PER_CITY건까지만 본다.
+  const targets = rows.filter(r => !NOISE_WORDS.test(r.listTitle || '')).slice(0, MAX_ROWS_PER_CITY);
+  for (const r of targets) {
     const ck = `${cfg.key}:${r.mgtNo}`;
     let detail = eminwonDetails.get(ck);
     if (!detail) {
@@ -360,10 +452,16 @@ const ALL_CITIES = [
   ...EMINWON_CITIES.map(c => ({ cfg: c, run: () => fetchEminwon(c) })),
 ];
 
-const fetchCities = () => Promise.all(
-  ALL_CITIES.map(({ cfg, run }) =>
-    run().catch(e => { console.error(`${cfg.org} 수집 실패:`, e.message); return []; }))
-).then(lists => lists.flat());
+async function fetchCities() {
+  const out = [];
+  for (let i = 0; i < ALL_CITIES.length; i += CITY_CONCURRENCY) {
+    const part = ALL_CITIES.slice(i, i + CITY_CONCURRENCY);
+    const lists = await Promise.all(part.map(({ cfg, run }) =>
+      run().catch(e => { console.error(`${cfg.org} 수집 실패:`, e.message); return []; })));
+    out.push(...lists.flat());
+  }
+  return out;
+}
 
 // ---------- 캐시 ----------
 let cache = { at: 0, jobs: [] };
@@ -378,8 +476,11 @@ function refresh() {
     const jobs = [...city, ...senuri];   // 지역 공고를 앞에
     if (jobs.length) {
       cache = { at: Date.now(), jobs };
-      const byCity = ALL_CITIES.map(({ cfg }) => `${cfg.org} ${city.filter(j => j.src === cfg.key).length}건`).join(' · ');
-      console.log(`수집 완료: ${byCity} · 노인일자리 ${senuri.length}건`);
+      const hit = ALL_CITIES
+        .map(({ cfg }) => [cfg.org, city.filter(j => j.src === cfg.key).length])
+        .filter(([, n]) => n > 0);
+      console.log(`수집 완료: 시군 ${hit.length}/${ALL_CITIES.length}곳에서 ${city.length}건 · 노인일자리 ${senuri.length}건`);
+      console.log('  ' + hit.map(([o, n]) => `${o} ${n}`).join(' · '));
       enrichOpenJobs(jobs).catch(e => console.error('상세 보강 실패:', e.message));
     }
     return cache.jobs;
@@ -460,8 +561,65 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`일자리 알리미 서버 실행: http://localhost:${PORT}`);
-  refresh();                              // 시작하자마자 미리 받아둔다
-  setInterval(refresh, CACHE_MS);         // 이후 10분마다 갱신
-});
+// ---------- 수집 전용 모드 ----------
+// GitHub Actions가 `CRAWL_OUT=jobs.json node server.js` 로 돌린다.
+// 서버를 띄우지 않고 한 번만 수집해서 결과 JSON을 파일로 남기고 끝낸다.
+// 진행 로그는 stderr로 보내 결과 파일을 더럽히지 않는다.
+async function crawlOnce(outPath, prevPath) {
+  const t0 = Date.now();
+
+  // 지난번 결과가 있으면 상세 내용을 물려받는다.
+  // 상세 페이지는 공고 하나당 요청 1회라, 새로 올라온 공고만 받으면 요청이 크게 줄어든다.
+  let seeded = 0;
+  if (prevPath && fs.existsSync(prevPath)) {
+    try {
+      const prev = JSON.parse(fs.readFileSync(prevPath, 'utf-8'));
+      for (const [id, d] of Object.entries(prev.senuriDetails || {})) { details.set(id, d); seeded++; }
+      for (const [ck, d] of Object.entries(prev.eminwonDetails || {})) { eminwonDetails.set(ck, d); seeded++; }
+      console.error(`이전 결과에서 상세 ${seeded}건 물려받음`);
+    } catch (e) { console.error('이전 결과 읽기 실패(무시하고 새로 받음):', e.message); }
+  }
+
+  const [senuri, city] = await Promise.all([
+    fetchSenuri().catch(e => { console.error('노인일자리 수집 실패:', e.message); return []; }),
+    fetchCities(),
+  ]);
+  const jobs = [...city, ...senuri];
+  if (!jobs.length) throw new Error('수집 결과가 0건이다 — 기존 데이터를 덮어쓰지 않는다');
+
+  // 노인일자리는 목록에 근무지·연락처가 비어 있어 상세를 받아야 쓸모가 있다.
+  // 액션은 시간 여유가 있으니 로컬 기본값(300건)보다 넉넉히 받는다.
+  await enrichOpenJobs(jobs, { budget: 800, concurrency: 4, pauseMs: 120 }).catch(e =>
+    console.error('상세 보강 실패(목록만으로 진행):', e.message));
+
+  const openCount = jobs.filter(j => j.open).length;
+  const payload = {
+    at: new Date().toISOString(),
+    jobs,
+    senuriDetails: Object.fromEntries(details),
+    eminwonDetails: Object.fromEntries(eminwonDetails),
+    stats: {
+      total: jobs.length, open: openCount,
+      city: city.length, senuri: senuri.length,
+      cities: ALL_CITIES.length,
+      citiesWithJobs: ALL_CITIES.filter(({ cfg }) => city.some(j => j.src === cfg.key)).length,
+      tookSec: Math.round((Date.now() - t0) / 1000),
+    },
+  };
+  fs.writeFileSync(outPath, JSON.stringify(payload));
+  const mb = (fs.statSync(outPath).size / 1048576).toFixed(2);
+  console.error(`\n저장: ${outPath} (${mb} MB)`);
+  console.error(JSON.stringify(payload.stats));
+}
+
+if (process.env.CRAWL_OUT) {
+  crawlOnce(process.env.CRAWL_OUT, process.env.CRAWL_PREV)
+    .then(() => process.exit(0))
+    .catch(e => { console.error('수집 실패:', e); process.exit(1); });
+} else {
+  server.listen(PORT, () => {
+    console.log(`일자리 알리미 서버 실행: http://localhost:${PORT}`);
+    refresh();                              // 시작하자마자 미리 받아둔다
+    setInterval(refresh, CACHE_MS);         // 이후 10분마다 갱신
+  });
+}

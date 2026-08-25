@@ -24,6 +24,9 @@
     border: 2px solid #1a5c2e; background: #fff; color: #1a5c2e; cursor: pointer;
   }
   .regions button.on { background: #1a5c2e; color: #fff; }
+  .regions.sub { gap: 8px; margin: 4px 0 8px; }
+  .regions.sub button { font-size: 18px; padding: 9px 15px; border-width: 2px; border-color: #6b9c7d; }
+  .regions.sub button.on { background: #1a5c2e; border-color: #1a5c2e; }
 
   .searchrow { display: flex; gap: 8px; margin: 10px 0 4px; }
   .searchrow input {
@@ -80,7 +83,8 @@
   <p>가지 않아도, 오늘의 일자리를 한눈에</p>
 </header>
 <main>
-  <div class="regions" id="regions"></div>
+  <div class="regions" id="sidoRow"></div>
+  <div class="regions sub" id="sigunRow"></div>
   <div class="searchrow">
     <input id="q" type="text" placeholder="지역이나 일 이름 입력 (예: 미화)">
     <button onclick="search()">찾기</button>
@@ -93,14 +97,22 @@
   <div id="list"><div class="loading">불러오는 중…</div></div>
 </main>
 <footer>
-  자료 출처: 제천·단양·충주·원주·영월·영주·문경·음성·진천·괴산·평창·정선 시군청 고시·공고 · 한국노인인력개발원(노인일자리여기)<br>
+  자료 출처: 전국 시·군청 고시·공고(새올 전자민원 92곳) · 한국노인인력개발원(노인일자리여기)<br>
   공고 내용은 반드시 원문과 전화로 확인해 주세요.
 </footer>
 
 <script>
-const REGIONS = ['제천', '단양', '충주', '원주', '영월', '충북', '전국'];
+// 전국(시군 90여 곳)으로 넓히면서 지역 버튼을 두 줄로 나눴다.
+// 윗줄에서 시도를 고르면, 아랫줄에 그 시도에서 지금 뽑는 시군만 나온다.
+const SIDO_ORDER = ['서울','인천','경기','강원','충북','충남','대전','세종',
+                    '전북','전남','광주','경북','경남','대구','울산','부산','제주'];
 const POLL_MS = 10 * 60 * 1000;
-let currentRegion = localStorage.getItem('region') || '제천';
+let regionData = {};                                        // { 시도: { 시군: 건수 } }
+let currentSido  = localStorage.getItem('sido')  || '전국';
+let currentSigun = localStorage.getItem('sigun') || '';
+// 시도 17개를 다 펼쳐두면 첫 화면이 버튼으로 꽉 차서 공고가 안 보인다.
+// 처음 온 사람에게만 펼쳐 보여주고, 한 번 고르고 나면 접어둔다.
+let sidoOpen = !localStorage.getItem('sido');
 let pollTimer = null;
 
 function getSeen() {
@@ -115,8 +127,9 @@ function addSeen(ids) {
 const firstVisit = !localStorage.getItem('seenJobs');
 
 function currentQuery() {
-  if (currentRegion) return currentRegion === '전국' ? '' : currentRegion;
-  return document.getElementById('q').value.trim();
+  if (!currentSido) return document.getElementById('q').value.trim();   // 직접 검색 중
+  if (currentSido === '전국') return '';
+  return currentSigun ? currentSido + ' ' + currentSigun : currentSido;
 }
 
 function fmtDate(s) {
@@ -128,21 +141,49 @@ function esc(s) {
 }
 
 function renderRegions() {
-  document.getElementById('regions').innerHTML = REGIONS.map(r =>
-    `<button class="${r === currentRegion ? 'on' : ''}" onclick="pickRegion('${r}')">${r}</button>`
-  ).join('');
+  const have = SIDO_ORDER.filter(s => regionData[s]);
+  const btn = (label, on, fn) =>
+    `<button class="${on ? 'on' : ''}" onclick="${fn}">${label}</button>`;
+
+  const shown = sidoOpen ? have : have.filter(s => s === currentSido);
+  document.getElementById('sidoRow').innerHTML =
+    btn('전국', currentSido === '전국', "pickSido('전국')") +
+    shown.map(s => btn(s, currentSido === s, `pickSido('${s}')`)).join('') +
+    btn(sidoOpen ? '접기 ▲' : '다른 지역 ▾', false, 'toggleSido()');
+
+  // 시도를 고른 상태에서만 시군 줄을 보여준다
+  const sigunRow = document.getElementById('sigunRow');
+  const map = regionData[currentSido];
+  if (!map) { sigunRow.innerHTML = ''; return; }
+  const list = Object.keys(map).sort((a, b) => map[b] - map[a]);
+  sigunRow.innerHTML =
+    btn(currentSido + ' 전체', !currentSigun, `pickSigun('')`) +
+    list.map(g => btn(`${g} ${map[g]}`, currentSigun === g, `pickSigun('${g}')`)).join('');
 }
 
-function pickRegion(r) {
-  currentRegion = r;
-  localStorage.setItem('region', r);
+function toggleSido() {
+  sidoOpen = !sidoOpen;
+  renderRegions();
+}
+
+function pickSido(s) {
+  currentSido = s; currentSigun = '';
+  sidoOpen = false;                 // 골랐으면 접어서 공고를 바로 보여준다
+  localStorage.setItem('sido', s); localStorage.setItem('sigun', '');
   document.getElementById('q').value = '';
   renderRegions();
   load();
 }
 
+function pickSigun(g) {
+  currentSigun = g;
+  localStorage.setItem('sigun', g);
+  renderRegions();
+  load();
+}
+
 function search() {
-  currentRegion = '';
+  currentSido = ''; currentSigun = '';
   renderRegions();
   load();
 }
@@ -155,6 +196,7 @@ async function load() {
   list.innerHTML = '<div class="loading">불러오는 중…</div>';
   try {
     const data = await fetchJobs(currentQuery());
+    if (data.regions) { regionData = data.regions; renderRegions(); }
     const seen = getSeen();
     const c = data.counts || {};
     document.getElementById('count').textContent =
