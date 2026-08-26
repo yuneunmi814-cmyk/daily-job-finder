@@ -4,8 +4,8 @@
   "description": "가지 않아도, 오늘의 일자리를 한눈에",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f6f8",
-  "theme_color": "#1a5c2e",
+  "background_color": "#FFFCF0",
+  "theme_color": "#FFC72C",
   "icons": [
     { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ]

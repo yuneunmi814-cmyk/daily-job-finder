@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#1a5c2e">
+<meta name="theme-color" content="#FFC72C">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <title>일자리 알리미</title>
@@ -11,9 +11,9 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
     font-family: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    font-size: 20px; line-height: 1.5; color: #111; background: #f5f6f8;
+    font-size: 20px; line-height: 1.5; color: #1A1A1A; background: #FFFCF0;
   }
-  header { background: #1a5c2e; color: #fff; padding: 20px 16px; text-align: center; }
+  header { background: #FFC72C; color: #1A1A1A; padding: 20px 16px; text-align: center; }
   header h1 { font-size: 30px; }
   header p { font-size: 17px; opacity: .9; margin-top: 4px; }
   main { max-width: 720px; margin: 0 auto; padding: 16px; }
@@ -21,60 +21,61 @@
   .regions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 8px; }
   .regions button {
     font-size: 22px; font-weight: 700; padding: 14px 22px; border-radius: 14px;
-    border: 2px solid #1a5c2e; background: #fff; color: #1a5c2e; cursor: pointer;
+    border: 2px solid #8A6A00; background: #fff; color: #5C4300; cursor: pointer;
   }
-  .regions button.on { background: #1a5c2e; color: #fff; }
+  .regions button.on { background: #FFC72C; color: #1A1A1A; border-color: #1A1A1A; }
   .regions.sub { gap: 8px; margin: 4px 0 8px; }
-  .regions.sub button { font-size: 18px; padding: 9px 15px; border-width: 2px; border-color: #6b9c7d; }
-  .regions.sub button.on { background: #1a5c2e; border-color: #1a5c2e; }
+  .regions.sub button { font-size: 18px; padding: 9px 15px; border-width: 2px; border-color: #B8912E; }
+  .regions.sub button.on { background: #FFC72C; border-color: #1A1A1A; }
 
   .searchrow { display: flex; gap: 8px; margin: 10px 0 4px; }
   .searchrow input {
-    flex: 1; font-size: 21px; padding: 14px; border: 2px solid #bbb; border-radius: 12px; min-width: 0;
+    flex: 1; font-size: 21px; padding: 14px; border: 2px solid #C9BC96; border-radius: 12px; min-width: 0;
   }
   .searchrow button {
     font-size: 21px; font-weight: 700; padding: 14px 20px; border: 0; border-radius: 12px;
-    background: #1a5c2e; color: #fff; cursor: pointer;
+    background: #1A1A1A; color: #FFC72C; cursor: pointer;
   }
 
   .notifrow { margin: 10px 0 4px; }
   .notifrow button {
     width: 100%; font-size: 20px; font-weight: 700; padding: 13px; border-radius: 12px;
-    border: 2px solid #1a5c2e; background: #fff; color: #1a5c2e; cursor: pointer;
+    border: 2px solid #8A6A00; background: #fff; color: #5C4300; cursor: pointer;
   }
-  .notifrow button.on { background: #1a5c2e; color: #fff; }
-  .notifrow .hint { font-size: 16px; color: #777; margin-top: 6px; text-align: center; }
+  .notifrow button.on { background: #FFC72C; color: #1A1A1A; border-color: #1A1A1A; }
+  .notifrow .hint { font-size: 16px; color: #5C4300; margin-top: 6px; text-align: center; }
 
-  .count { font-size: 18px; color: #555; margin: 12px 2px; }
+  .count { font-size: 18px; color: #5C4300; margin: 12px 2px; }
 
   .card {
     background: #fff; border-radius: 16px; padding: 18px; margin-bottom: 14px;
-    border: 1px solid #e2e4e8; cursor: pointer;
+    border: 1px solid #EADFC0; cursor: pointer;
   }
-  .card:active { background: #eef5ef; }
-  .card.city { border-left: 8px solid #1a5c2e; }
+  .card:active { background: #FFF6DA; }
+  .card.city { border-left: 8px solid #FFC72C; }
   .card .title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
   .card .meta { font-size: 19px; color: #333; display: flex; flex-wrap: wrap; gap: 6px 16px; }
   .badge {
     display: inline-block; font-size: 16px; font-weight: 700; padding: 3px 10px;
-    border-radius: 8px; background: #e8f4ea; color: #1a5c2e; margin: 0 6px 8px 0;
+    border-radius: 8px; background: #FFF0C2; color: #5C4300; margin: 0 6px 8px 0;
+    border: 2px solid transparent;
   }
-  .badge.visit { background: #fdf1e0; color: #9a6210; }
+  .badge.visit { background: #fdf1e0; color: #9a6210; border-color: #1A1A1A; }
   .badge.new { background: #c62828; color: #fff; }
-  .badge.city { background: #1a5c2e; color: #fff; }
+  .badge.city { background: #1A1A1A; color: #FFC72C; }
 
-  .detail { margin-top: 14px; padding-top: 14px; border-top: 2px dashed #ddd; font-size: 19px; display: none; }
+  .detail { margin-top: 14px; padding-top: 14px; border-top: 2px dashed #EADFC0; font-size: 19px; display: none; }
   .detail dl { display: grid; grid-template-columns: 110px 1fr; gap: 8px 10px; }
   .detail dt { font-weight: 700; color: #666; }
-  .detail .body { white-space: pre-wrap; background: #f7f8fa; padding: 14px; border-radius: 12px; font-size: 18px; }
+  .detail .body { white-space: pre-wrap; background: #FAF6E8; padding: 14px; border-radius: 12px; font-size: 18px; }
   .callbtn, .linkbtn {
     display: block; text-align: center; margin-top: 12px; padding: 16px;
     font-size: 22px; font-weight: 800; border-radius: 14px; text-decoration: none;
   }
-  .callbtn { background: #1a5c2e; color: #fff; }
-  .linkbtn { background: #fff; color: #1a5c2e; border: 2px solid #1a5c2e; }
-  .loading, .empty { text-align: center; padding: 40px 0; color: #666; font-size: 21px; }
-  footer { text-align: center; color: #888; font-size: 15px; padding: 24px 16px; line-height: 1.7; }
+  .callbtn { background: #FFC72C; color: #1A1A1A; border: 2px solid #1A1A1A; }
+  .linkbtn { background: #fff; color: #5C4300; border: 2px solid #8A6A00; }
+  .loading, .empty { text-align: center; padding: 40px 0; color: #5C4300; font-size: 21px; }
+  footer { text-align: center; color: #5C4300; font-size: 15px; padding: 24px 16px; line-height: 1.7; }
 
 :root{
   --ico-pin:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11z'/%3E%3Ccircle cx='12' cy='10' r='2.6'/%3E%3C/svg%3E");
@@ -84,6 +85,7 @@
   --ico-doc:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.5 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8.5z'/%3E%3Cpath d='M13.5 3v5.5H19M8.5 13h7M8.5 16.5h5'/%3E%3C/svg%3E");
   --ico-phone:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 16.9v2.6a1.7 1.7 0 0 1-1.9 1.7 17 17 0 0 1-7.4-2.6 16.6 16.6 0 0 1-5.1-5.1A17 17 0 0 1 4 6a1.7 1.7 0 0 1 1.7-1.9h2.6a1.7 1.7 0 0 1 1.7 1.5c.1.9.3 1.7.6 2.5a1.7 1.7 0 0 1-.4 1.8L9.1 11a13.6 13.6 0 0 0 5.1 5.1l1.1-1.1a1.7 1.7 0 0 1 1.8-.4c.8.3 1.6.5 2.5.6a1.7 1.7 0 0 1 1.4 1.7z'/%3E%3C/svg%3E");
   --ico-leaf:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 21v-8'/%3E%3Cpath d='M12 13c0-3.3 2.7-6 6-6 0 3.3-2.7 6-6 6z'/%3E%3Cpath d='M12 15c0-2.8-2.2-5-5-5 0 2.8 2.2 5 5 5z'/%3E%3C/svg%3E");
+  --ico-flag:url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23000'%3E%3Crect x='3.6' y='2' width='2.4' height='20' rx='1.2'/%3E%3Cpath d='M7.2 3h13.2v8.4c-2.2 1.3-4.4-1.3-6.6 0-2.2 1.3-4.4-1.3-6.6 0z'/%3E%3C/svg%3E");
 }
   /* 이모지는 기기·OS마다 다르게 그려져서 디자인이 될 수 없다.
      마스크로 넣고 색은 currentColor를 따라가게 해서, 글자색이 바뀌면 아이콘도 같이 바뀐다. */
@@ -101,11 +103,12 @@
   .ico-doc{-webkit-mask-image:var(--ico-doc);mask-image:var(--ico-doc);}
   .ico-phone{-webkit-mask-image:var(--ico-phone);mask-image:var(--ico-phone);}
   .ico-leaf{-webkit-mask-image:var(--ico-leaf);mask-image:var(--ico-leaf);}
+  .ico-flag{-webkit-mask-image:var(--ico-flag);mask-image:var(--ico-flag);}
 </style>
 </head>
 <body>
 <header>
-  <h1><i class="ico ico-leaf"></i> 일자리 알리미</h1>
+  <h1><i class="ico ico-flag"></i> 일자리 알리미</h1>
   <p>가지 않아도, 오늘의 일자리를 한눈에</p>
 </header>
 <main>
