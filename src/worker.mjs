@@ -67,6 +67,15 @@ export default {
           j.place.includes(t) || j.title.includes(t) || j.org.includes(t) || (j.addr || '').includes(t)));
       }
 
+      // 마감이 가까운 것부터 보여준다. 시니어에게 제일 중요한 건 "언제까지"라서,
+      // 사람인·잡코리아·워크넷이 공통으로 두는 축이기도 하다.
+      // 마감일이 없는 공고(상시·채용시)는 워크넷처럼 뒤로 뺀다 — 급하지 않으니까.
+      const byDeadline = [...jobs].sort((a, b) => {
+        const x = a.endDd || '99999999';
+        const y = b.endDd || '99999999';
+        return x < y ? -1 : x > y ? 1 : 0;
+      });
+
       return json({
         total: jobs.length,
         counts: {
@@ -75,7 +84,7 @@ export default {
         },
         updatedAt: data.at,
         regions: data.regions,
-        jobs: jobs.slice(0, LIST_LIMIT),
+        jobs: byDeadline.slice(0, LIST_LIMIT),
       });
     }
 

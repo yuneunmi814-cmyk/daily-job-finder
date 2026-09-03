@@ -1,7 +1,7 @@
 {
   "name": "일자리 알리미",
   "short_name": "일자리",
-  "description": "가지 않아도, 오늘의 일자리를 한눈에",
+  "description": "오늘 뽑는 곳만 모았습니다",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFCF0",

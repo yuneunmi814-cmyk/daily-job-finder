@@ -55,6 +55,7 @@
   .card.city { border-left: 8px solid #FFC72C; }
   .card .title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
   .card .meta { font-size: 19px; color: #333; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .card .meta .due { color: #c62828; font-weight: 800; }
   .badge {
     display: inline-block; font-size: 16px; font-weight: 700; padding: 3px 10px;
     border-radius: 8px; background: #FFF0C2; color: #5C4300; margin: 0 6px 8px 0;
@@ -109,7 +110,7 @@
 <body>
 <header>
   <h1><i class="ico ico-flag"></i> 일자리 알리미</h1>
-  <p>가지 않아도, 오늘의 일자리를 한눈에</p>
+  <p>오늘 뽑는 곳만 모았습니다</p>
 </header>
 <main>
   <div class="regions" id="sidoRow"></div>
@@ -178,6 +179,20 @@ function fmtDate(s) {
   if (!s || s.length !== 8) return '';
   return `${+s.slice(4, 6)}월 ${+s.slice(6, 8)}일`;
 }
+// 마감까지 며칠 남았나. 날짜만 비교한다(시간은 안 본다).
+// 사흘 안쪽이면 날짜 대신 "오늘 마감"처럼 남은 날을 보여주고 빨갛게 띄운다 —
+// 배지를 새로 늘리지 않고, 어차피 눈이 가는 자리(마감일)에서 말투만 바꾸는 방식.
+function dday(s) {
+  if (!s || s.length !== 8) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  const end = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
+  const d = Math.round((end - t) / 86400000);
+  if (d < 0)  return { text: '마감', urgent: true };
+  if (d === 0) return { text: '오늘 마감', urgent: true };
+  if (d === 1) return { text: '내일 마감', urgent: true };
+  if (d <= 3)  return { text: d + '일 남음', urgent: true };
+  return { text: fmtDate(s) + '까지', urgent: false };
+}
 function esc(s) {
   return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
@@ -244,7 +259,7 @@ async function load() {
     document.getElementById('count').textContent =
       `접수 중인 일자리 ${data.total}건` +
       (c.city ? ` (시청 공고 ${c.city}건 · 노인일자리 ${c.senuri}건)` : '') +
-      (data.total > 200 ? ' — 최근 200건 표시' : '');
+      (data.total > 200 ? ' — 마감 가까운 200건 먼저' : '');
 
     if (!data.jobs.length) {
       list.innerHTML = '<div class="empty">지금 접수 중인 일자리가 없어요.<br>다른 지역을 눌러보세요.</div>';
@@ -262,7 +277,11 @@ async function load() {
         <div class="meta">
           <span><i class="ico ico-pin"></i> ${esc(j.place || '지역 미표기')}</span>
           <span><i class="ico ico-org"></i> ${esc(j.org)}${j.dept ? ' ' + esc(j.dept) : ''}</span>
-          ${j.endDd ? `<span><i class="ico ico-clock"></i> ${fmtDate(j.endDd)}까지</span>` : (city ? '<span><i class="ico ico-clock"></i> 마감일은 공고문 확인</span>' : '')}
+          ${(() => {
+            const d = dday(j.endDd);
+            if (!d) return city ? '<span><i class="ico ico-clock"></i> 마감일은 공고문 확인</span>' : '';
+            return `<span class="${d.urgent ? 'due' : ''}"><i class="ico ico-clock"></i> ${d.text}</span>`;
+          })()}
         </div>
         <div class="detail"></div>
       </div>`;
