@@ -60,7 +60,14 @@ export default {
       const openOnly = url.searchParams.get('open') !== '0';
 
       let jobs = data.jobs;
-      if (openOnly) jobs = jobs.filter(j => j.open);
+      if (openOnly) {
+        // 수집은 하루 세 번인데 자정은 매일 지나간다. 어제 마감인 공고가
+        // "접수중"인 채로 남아 있으면, 마감 가까운 순으로 세울 때 그게 맨 위로 온다.
+        // 전화 걸었다가 "끝났어요" 소리를 듣게 되므로 여기서 뺀다.
+        // 기준 날짜는 한국 시간이다 — Worker는 UTC로 돌아서 그냥 두면 아홉 시간 어긋난다.
+        const todayKST = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+        jobs = jobs.filter(j => j.open && !(j.endDd && j.endDd < todayKST));
+      }
       if (q) {
         const terms = q.split(/\s+/);
         jobs = jobs.filter(j => terms.every(t =>
