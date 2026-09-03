@@ -498,20 +498,32 @@ async function fetchCitiesOnce(targets, label) {
   return { out, failed };
 }
 
+// 재시도는 점점 더 오래 쉬었다 간다.
+// 2026-09-04 실측: 5초만 쉬고 한 번 더 가니 한국에선 5곳 중 3곳을 건졌는데
+// 미국 러너에선 16곳 중 2곳뿐이었다. 상대가 조인 거라면 더 기다려야 풀린다.
+// 재시도는 실패한 곳만 도는 거라 한 바퀴가 짧다 — 넉넉히 쉬어도 손해가 작다.
+const RETRY_WAITS_MS = [15000, 45000];
+
 async function fetchCities() {
   const first = await fetchCitiesOnce(ALL_CITIES, '');
   const jobs = first.out;
+  let remaining = first.failed;
 
-  if (first.failed.length) {
-    console.error(`\n1차에서 ${first.failed.length}곳 실패 → 5초 쉬고 다시 시도한다`);
-    await sleep(5000);
-    const second = await fetchCitiesOnce(first.failed, '[재시도] ');
-    jobs.push(...second.out);
-    const saved = first.failed.length - second.failed.length;
-    console.error(`재시도로 ${saved}곳 건졌다. 끝내 실패: ${second.failed.length}곳`);
-    if (second.failed.length) {
-      console.error('끝내 실패한 곳:', second.failed.map(t => t.cfg.org).join(' '));
-    }
+  for (let round = 0; round < RETRY_WAITS_MS.length && remaining.length; round++) {
+    const wait = RETRY_WAITS_MS[round];
+    console.error(`\n${round === 0 ? '1차' : `재시도 ${round}차`}에서 ${remaining.length}곳 실패`
+      + ` → ${wait / 1000}초 쉬고 다시 시도한다`);
+    await sleep(wait);
+    const again = await fetchCitiesOnce(remaining, `[재시도 ${round + 1}차] `);
+    jobs.push(...again.out);
+    console.error(`재시도 ${round + 1}차: ${remaining.length - again.failed.length}곳 건졌다`);
+    remaining = again.failed;
+  }
+
+  if (remaining.length) {
+    console.error(`\n끝내 실패: ${remaining.length}곳 —`, remaining.map(t => t.cfg.org).join(' '));
+  } else if (first.failed.length) {
+    console.error('\n재시도로 전부 건졌다');
   }
   return jobs;
 }
