@@ -498,16 +498,29 @@ async function fetchCitiesOnce(targets, label) {
   return { out, failed };
 }
 
-// 재시도는 점점 더 오래 쉬었다 간다.
-// 2026-09-04 실측: 5초만 쉬고 한 번 더 가니 한국에선 5곳 중 3곳을 건졌는데
-// 미국 러너에선 16곳 중 2곳뿐이었다. 상대가 조인 거라면 더 기다려야 풀린다.
-// 재시도는 실패한 곳만 도는 거라 한 바퀴가 짧다 — 넉넉히 쉬어도 손해가 작다.
+// 재시도는 실패한 곳만 다시 간다. 다만 두 가지를 지킨다.
+//
+// 1) 대부분이 실패했으면 재시도하지 않는다.
+//    2026-09-04에 92곳이 전부 ConnectTimeout으로 실패한 회차가 있었다. 같은 시각 한국에서는
+//    다섯 곳 모두 0.2초 안에 응답했으니 사이트 문제가 아니라 우리가 막힌 것이다
+//    (그날 한 시간 안에 수집·진단을 네 번 돌렸다). 막힌 상태에서 재시도는 아무것도 못 건지고,
+//    92곳 × 타임아웃을 두 바퀴 더 도느라 실행 시간만 터뜨려 작업이 통째로 잘렸다.
+//    이럴 땐 빨리 포기하는 게 맞다 — 어차피 뒤에서 결과를 버린다.
+//
+// 2) 쉬는 시간은 넉넉히. 조인 것이라면 5초로는 안 풀린다(실측: 16곳 중 2곳만 회복).
 const RETRY_WAITS_MS = [15000, 45000];
+const RETRY_GIVEUP_RATIO = 0.5;   // 절반 넘게 실패 = 막힌 것으로 보고 재시도 안 함
 
 async function fetchCities() {
   const first = await fetchCitiesOnce(ALL_CITIES, '');
   const jobs = first.out;
   let remaining = first.failed;
+
+  if (remaining.length > ALL_CITIES.length * RETRY_GIVEUP_RATIO) {
+    console.error(`\n${ALL_CITIES.length}곳 중 ${remaining.length}곳 실패 — 한두 곳이 아니라`
+      + ' 우리가 막힌 것으로 본다. 재시도하지 않고 여기서 접는다.');
+    return jobs;
+  }
 
   for (let round = 0; round < RETRY_WAITS_MS.length && remaining.length; round++) {
     const wait = RETRY_WAITS_MS[round];

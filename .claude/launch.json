@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "일자리 알리미",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 3465
+    }
+  ]
+}
