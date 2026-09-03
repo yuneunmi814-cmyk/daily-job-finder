@@ -27,7 +27,13 @@ const CACHE_MS = 10 * 60 * 1000;
 // 전국 91개 시군을 돌기 때문에, 시군 한 곳당 보는 공고 수와 동시 요청 수를 묶어둔다.
 // (묶지 않으면 상세 요청이 수천 건이 되어 수집이 끝나지 않는다)
 const MAX_ROWS_PER_CITY = Number(process.env.MAX_ROWS_PER_CITY || 40);
-const CITY_CONCURRENCY  = Number(process.env.CITY_CONCURRENCY  || 6);
+// 6이었는데 2026-09-04에 6이 원인이라는 게 실측으로 나왔다.
+//   미국 러너에서 순차로 두드리면 91곳 중 12곳 실패 (한국에서 잰 것과 같다)
+//   같은 러너에서 동시 6으로 두드리면            60곳 실패
+// 위치 문제가 아니라 한꺼번에 세게 두드리는 게 문제다. 새올 시군들은 IP가 달라도
+// 27.101.x / 152.99.x 같은 정부 공용 대역에 몰려 있어, 한 관문에서 보면
+// 한 곳에서 쏟아지는 것으로 보인다(정황 추론).
+const CITY_CONCURRENCY  = Number(process.env.CITY_CONCURRENCY  || 3);
 const PORT = process.env.PORT || 3465;
 
 const PHONE_RE = /(?<!\d)0(?:2|1[016789]|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g;
@@ -472,15 +478,42 @@ const ALL_CITIES = [
   ...EMINWON_CITIES.map(c => ({ cfg: c, run: () => fetchEminwon(c) })),
 ];
 
-async function fetchCities() {
+// 실패는 그때그때 다른 시군에서 난다 — 막힌 게 아니라 그 순간 응답이 없는 것이다.
+// 2026-09-04 실측: 같은 자리(한국)에서 두 번 재니 실패한 곳이 17곳 → 12곳으로 바뀌었고
+// 겹치지도 않았다. 그래서 한 바퀴 다 돌고 실패한 곳만 다시 한 번 간다.
+// 한 바퀴 쉬었다 가므로 상대 서버가 숨 돌릴 틈도 생긴다.
+async function fetchCitiesOnce(targets, label) {
   const out = [];
-  for (let i = 0; i < ALL_CITIES.length; i += CITY_CONCURRENCY) {
-    const part = ALL_CITIES.slice(i, i + CITY_CONCURRENCY);
-    const lists = await Promise.all(part.map(({ cfg, run }) =>
-      run().catch(e => { console.error(`${cfg.org} 수집 실패:`, whyFailed(e)); return []; })));
+  const failed = [];
+  for (let i = 0; i < targets.length; i += CITY_CONCURRENCY) {
+    const part = targets.slice(i, i + CITY_CONCURRENCY);
+    const lists = await Promise.all(part.map(t =>
+      t.run().catch(e => {
+        console.error(`${label}${t.cfg.org} 수집 실패:`, whyFailed(e));
+        failed.push(t);
+        return [];
+      })));
     out.push(...lists.flat());
   }
-  return out;
+  return { out, failed };
+}
+
+async function fetchCities() {
+  const first = await fetchCitiesOnce(ALL_CITIES, '');
+  const jobs = first.out;
+
+  if (first.failed.length) {
+    console.error(`\n1차에서 ${first.failed.length}곳 실패 → 5초 쉬고 다시 시도한다`);
+    await sleep(5000);
+    const second = await fetchCitiesOnce(first.failed, '[재시도] ');
+    jobs.push(...second.out);
+    const saved = first.failed.length - second.failed.length;
+    console.error(`재시도로 ${saved}곳 건졌다. 끝내 실패: ${second.failed.length}곳`);
+    if (second.failed.length) {
+      console.error('끝내 실패한 곳:', second.failed.map(t => t.cfg.org).join(' '));
+    }
+  }
+  return jobs;
 }
 
 // ---------- 캐시 ----------
@@ -591,12 +624,15 @@ async function crawlOnce(outPath, prevPath) {
   // 지난번 결과가 있으면 상세 내용을 물려받는다.
   // 상세 페이지는 공고 하나당 요청 1회라, 새로 올라온 공고만 받으면 요청이 크게 줄어든다.
   let seeded = 0;
+  let prevCityCount = 0;
   if (prevPath && fs.existsSync(prevPath)) {
     try {
       const prev = JSON.parse(fs.readFileSync(prevPath, 'utf-8'));
       for (const [id, d] of Object.entries(prev.senuriDetails || {})) { details.set(id, d); seeded++; }
       for (const [ck, d] of Object.entries(prev.eminwonDetails || {})) { eminwonDetails.set(ck, d); seeded++; }
       console.error(`이전 결과에서 상세 ${seeded}건 물려받음`);
+      prevCityCount = new Set((prev.jobs || []).filter(j => j.src !== 'senuri').map(j => j.src)).size;
+      if (prevCityCount) console.error(`직전 회차의 시군 수: ${prevCityCount}곳`);
     } catch (e) { console.error('이전 결과 읽기 실패(무시하고 새로 받음):', e.message); }
   }
 
@@ -606,6 +642,16 @@ async function crawlOnce(outPath, prevPath) {
   ]);
   const jobs = [...city, ...senuri];
   if (!jobs.length) throw new Error('수집 결과가 0건이다 — 기존 데이터를 덮어쓰지 않는다');
+
+  // 0건만 막는 걸로는 모자랐다. 2026-09-03 회차는 91곳 중 60곳이 실패했는데도
+  // "성공"으로 끝나서, 공고 있는 시군이 78곳 → 30곳으로 쪼그라든 데이터가 그대로 올라갔다.
+  // 직전 회차의 절반도 못 미치면 이번 결과는 버리고 기존 데이터를 지킨다.
+  const cityCount = new Set(city.map(j => j.src)).size;
+  if (prevCityCount && cityCount < prevCityCount * 0.5) {
+    throw new Error(
+      `수집된 시군이 ${cityCount}곳뿐이다 (직전 ${prevCityCount}곳의 절반 미만) — ` +
+      '이번 결과는 버리고 기존 데이터를 지킨다');
+  }
 
   // 노인일자리는 목록에 근무지·연락처가 비어 있어 상세를 받아야 쓸모가 있다.
   // 액션은 시간 여유가 있으니 로컬 기본값(300건)보다 넉넉히 받는다.
