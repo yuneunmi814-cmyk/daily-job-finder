@@ -293,17 +293,37 @@ const eminwonDetails = new Map();   // `${key}:${mgtNo}` -> { title, dept, perso
 const stripTags = s => decodeXml(String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, ''))
   .replace(/&nbsp;/g, ' ').replace(/[ \t]+/g, ' ').trim();
 
-// 11개 시군을 동시에 부르다 보면 간헐적으로 접속이 실패한다 → 한 번 쉬었다 재시도
+// 동시에 여러 시군을 부르다 보면 간헐적으로 접속이 실패한다 → 한 번 쉬었다 재시도.
+//
+// ⚠️ 시간 제한이 반드시 있어야 한다. node의 fetch는 그냥 두면 기다리는 시간에 끝이 없어서,
+// 응답 없는 시군 하나가 배치 전체를 붙잡는다(Promise.all은 제일 느린 하나를 기다린다).
+// 2026-09-04 실측: 91곳 중 17곳이 아예 응답을 안 했고, 그 탓에 한 회 수집이
+// 8.7분 → 26.4분으로 늘어 있었다.
+const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS || 15000);
+
 async function getText(url, retries = 2) {
   for (let i = 0; ; i++) {
     try {
-      const r = await fetch(url, { headers: { 'User-Agent': UA } });
+      const r = await fetch(url, {
+        headers: { 'User-Agent': UA },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
       return (await r.text()).replace(/^﻿/, '');   // eminwon 응답에는 BOM이 붙는다
     } catch (e) {
       if (i >= retries) throw e;
       await sleep(500 * (i + 1));
     }
   }
+}
+
+// fetch가 실패하면 node는 'fetch failed'라고만 한다. 진짜 이유는 cause에 들어 있어서
+// 그걸 안 펴면 로그만 보고는 원인을 알 수 없다(타임아웃인지 DNS인지 인증서인지).
+function whyFailed(e) {
+  const parts = [];
+  for (let c = e; c; c = c.cause) {
+    parts.push(`${c.name || 'Error'}: ${c.message || ''}${c.code ? ` (${c.code})` : ''}`);
+  }
+  return parts.join(' ← ');
 }
 
 function eminwonUrls(host) {
@@ -457,7 +477,7 @@ async function fetchCities() {
   for (let i = 0; i < ALL_CITIES.length; i += CITY_CONCURRENCY) {
     const part = ALL_CITIES.slice(i, i + CITY_CONCURRENCY);
     const lists = await Promise.all(part.map(({ cfg, run }) =>
-      run().catch(e => { console.error(`${cfg.org} 수집 실패:`, e.message); return []; })));
+      run().catch(e => { console.error(`${cfg.org} 수집 실패:`, whyFailed(e)); return []; })));
     out.push(...lists.flat());
   }
   return out;

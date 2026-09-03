@@ -28,9 +28,16 @@ async function probe(host) {
   }
 }
 
-// 한 번에 하나씩(동시성 없이) 재서, 동시 접속 때문인지 아닌지 가른다
+// 한 번에 하나씩(동시성 없이) 재서, 동시 접속 때문인지 아닌지 가른다.
+// 중간에 잘려도 건진 게 남도록 한 줄씩 바로 찍는다.
 const results = [];
-for (const h of hosts) results.push(await probe(h));
+for (const h of hosts) {
+  const r = await probe(h);
+  results.push(r);
+  console.log(r.ok
+    ? `[${results.length}/${hosts.length}] OK   ${r.status} ${String(r.ms).padStart(6)}ms ${r.host}`
+    : `[${results.length}/${hosts.length}] FAIL   ${String(r.ms).padStart(6)}ms ${r.host}  ${r.why}`);
+}
 
 const ok = results.filter(r => r.ok);
 const bad = results.filter(r => !r.ok);
