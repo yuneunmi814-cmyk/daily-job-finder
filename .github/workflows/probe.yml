@@ -1,0 +1,20 @@
+# 새올 접속이 왜 실패하는지 알아보려고 만든 일회성 진단용 워크플로.
+# 원인을 찾고 나면 지워도 된다. 수동 실행만 되고 예약은 없다.
+name: 새올 접속 진단
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: 러너 위치 확인
+        run: curl -s --max-time 10 https://ipinfo.io | head -20 || echo "ipinfo 실패"
+      - name: 시군별 접속 시도
+        run: node scripts/probe.mjs
