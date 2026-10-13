@@ -77,7 +77,9 @@ export default {
       // 마감이 가까운 것부터 보여준다. 시니어에게 제일 중요한 건 "언제까지"라서,
       // 사람인·잡코리아·워크넷이 공통으로 두는 축이기도 하다.
       // 마감일이 없는 공고(상시·채용시)는 워크넷처럼 뒤로 뺀다 — 급하지 않으니까.
+      const recent = url.searchParams.get('sort') === 'recent';
       const byDeadline = [...jobs].sort((a, b) => {
+        if(recent){const date=j=>/^\d{8}$/.test(j.pubDd||'')?j.pubDd:'';const order=date(b).localeCompare(date(a));if(order)return order;}
         const x = a.endDd || '99999999';
         const y = b.endDd || '99999999';
         return x < y ? -1 : x > y ? 1 : 0;
@@ -90,6 +92,7 @@ export default {
           senuri: jobs.filter(j => j.src === 'senuri').length,
         },
         updatedAt: data.at,
+        order: recent ? 'recent' : 'deadline',
         regions: data.regions,
         jobs: byDeadline.slice(0, LIST_LIMIT),
       });
