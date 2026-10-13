@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const {collectBatches} = require('./lib/collection.cjs');
 
 // .env 로드 (의존성 없이)
 const envPath = path.join(__dirname, '.env');
@@ -33,7 +34,7 @@ const MAX_ROWS_PER_CITY = Number(process.env.MAX_ROWS_PER_CITY || 40);
 // 위치 문제가 아니라 한꺼번에 세게 두드리는 게 문제다. 새올 시군들은 IP가 달라도
 // 27.101.x / 152.99.x 같은 정부 공용 대역에 몰려 있어, 한 관문에서 보면
 // 한 곳에서 쏟아지는 것으로 보인다(정황 추론).
-const CITY_CONCURRENCY  = Number(process.env.CITY_CONCURRENCY  || 3);
+const CITY_CONCURRENCY  = Math.max(1, Math.min(3, Number(process.env.CITY_CONCURRENCY) || 1));
 const PORT = process.env.PORT || 3465;
 
 const PHONE_RE = /(?<!\d)0(?:2|1[016789]|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g;
@@ -92,7 +93,7 @@ function placeFromAddr(addr) {
 }
 
 async function fetchDetail(id) {
-  const xml = await fetch(`${SENURI}/getJobInfo?serviceKey=${KEY}&id=${id}`).then(r => r.text());
+  const xml = await getText(`${SENURI}/getJobInfo?serviceKey=${KEY}&id=${id}`);
   const it = parseItems(xml)[0];
   if (!it) throw new Error('상세 없음');
   const d = {
@@ -140,8 +141,7 @@ async function enrichOpenJobs(jobs, { budget = 300, concurrency = 3, pauseMs = 1
 async function fetchSenuri() {
   const pages = await Promise.all(
     Array.from({ length: PAGES }, (_, i) =>
-      fetch(`${SENURI}/getJobList?serviceKey=${KEY}&numOfRows=1000&pageNo=${i + 1}`)
-        .then(r => r.text())
+      getText(`${SENURI}/getJobList?serviceKey=${KEY}&numOfRows=1000&pageNo=${i + 1}`)
         .catch(() => '')
     )
   );
@@ -307,13 +307,14 @@ const stripTags = s => decodeXml(String(s).replace(/<br\s*\/?>/gi, '\n').replace
 // 8.7분 → 26.4분으로 늘어 있었다.
 const FETCH_TIMEOUT_MS = Number(process.env.FETCH_TIMEOUT_MS || 15000);
 
-async function getText(url, retries = 2) {
+async function getText(url, retries = 0) {
   for (let i = 0; ; i++) {
     try {
       const r = await fetch(url, {
         headers: { 'User-Agent': UA },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return (await r.text()).replace(/^﻿/, '');   // eminwon 응답에는 BOM이 붙는다
     } catch (e) {
       if (i >= retries) throw e;
@@ -435,7 +436,8 @@ const cdata = (block, tag) => {
 };
 
 async function fetchCityRss(cfg) {
-  const xml = await fetch(cfg.rss, { headers: { 'User-Agent': UA } }).then(r => r.text());
+  const xml = await getText(cfg.rss);
+  if (!/<(?:rss|rdf:RDF)\b/i.test(xml)) throw new Error('RSS 형식이 아닌 응답');
   const today = ymd(new Date());
   const jobs = [];
 
@@ -483,19 +485,8 @@ const ALL_CITIES = [
 // 겹치지도 않았다. 그래서 한 바퀴 다 돌고 실패한 곳만 다시 한 번 간다.
 // 한 바퀴 쉬었다 가므로 상대 서버가 숨 돌릴 틈도 생긴다.
 async function fetchCitiesOnce(targets, label) {
-  const out = [];
-  const failed = [];
-  for (let i = 0; i < targets.length; i += CITY_CONCURRENCY) {
-    const part = targets.slice(i, i + CITY_CONCURRENCY);
-    const lists = await Promise.all(part.map(t =>
-      t.run().catch(e => {
-        console.error(`${label}${t.cfg.org} 수집 실패:`, whyFailed(e));
-        failed.push(t);
-        return [];
-      })));
-    out.push(...lists.flat());
-  }
-  return { out, failed };
+  return collectBatches(targets, {concurrency:CITY_CONCURRENCY,
+    onError:(t,e)=>console.error(`${label}${t.cfg.org} 수집 실패:`,whyFailed(e))});
 }
 
 // 재시도는 실패한 곳만 다시 간다. 다만 두 가지를 지킨다.
@@ -513,6 +504,7 @@ const RETRY_GIVEUP_RATIO = 0.5;   // 절반 넘게 실패 = 막힌 것으로 보
 
 async function fetchCities() {
   const first = await fetchCitiesOnce(ALL_CITIES, '');
+  if(first.aborted) throw new Error(`초기 ${first.attempted}곳 모두 응답 실패 — 전체망 장애 가능성으로 수집 중단, 기존 데이터 유지`);
   const jobs = first.out;
   let remaining = first.failed;
 
@@ -562,7 +554,7 @@ function refresh() {
       enrichOpenJobs(jobs).catch(e => console.error('상세 보강 실패:', e.message));
     }
     return cache.jobs;
-  }).finally(() => { refreshing = null; });
+  }).catch(e => { console.error('갱신 실패·기존 공고 유지:', e.message); return cache.jobs; }).finally(() => { refreshing = null; });
   return refreshing;
 }
 
