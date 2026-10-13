@@ -34,7 +34,7 @@ const MAX_ROWS_PER_CITY = Number(process.env.MAX_ROWS_PER_CITY || 40);
 // 위치 문제가 아니라 한꺼번에 세게 두드리는 게 문제다. 새올 시군들은 IP가 달라도
 // 27.101.x / 152.99.x 같은 정부 공용 대역에 몰려 있어, 한 관문에서 보면
 // 한 곳에서 쏟아지는 것으로 보인다(정황 추론).
-const CITY_CONCURRENCY  = Math.max(1, Math.min(3, Number(process.env.CITY_CONCURRENCY) || 1));
+const CITY_CONCURRENCY  = Math.max(1, Math.min(3, Math.floor(Number(process.env.CITY_CONCURRENCY)) || 1));
 const PORT = process.env.PORT || 3465;
 
 const PHONE_RE = /(?<!\d)0(?:2|1[016789]|[3-6]\d|70)[-.\s]?\d{3,4}[-.\s]?\d{4}(?!\d)/g;
@@ -485,7 +485,7 @@ const ALL_CITIES = [
 // 겹치지도 않았다. 그래서 한 바퀴 다 돌고 실패한 곳만 다시 한 번 간다.
 // 한 바퀴 쉬었다 가므로 상대 서버가 숨 돌릴 틈도 생긴다.
 async function fetchCitiesOnce(targets, label) {
-  return collectBatches(targets, {concurrency:CITY_CONCURRENCY,
+  return collectBatches(targets, {concurrency:CITY_CONCURRENCY, outageThreshold:label?Infinity:6,
     onError:(t,e)=>console.error(`${label}${t.cfg.org} 수집 실패:`,whyFailed(e))});
 }
 

@@ -19,3 +19,8 @@ test('default scheduling never overlaps city requests',async()=>{
  let active=0,max=0;const r=await collectBatches(Array.from({length:8},()=>({run:async()=>{max=Math.max(max,++active);await new Promise(r=>setTimeout(r,1));active--;return [];}})),options);
  assert.equal(max,1);assert.equal(r.attempted,8);
 });
+
+test('retry rounds keep visiting all known failures, not just the initial probe',async()=>{
+ let calls=0;const r=await collectBatches(Array.from({length:13},()=>({run:async()=>{calls++;throw Error('offline');}})),{...options,outageThreshold:Infinity});
+ assert.equal(calls,13);assert.equal(r.failed.length,13);assert.equal(r.aborted,false);
+});
