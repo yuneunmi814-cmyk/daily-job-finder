@@ -1,0 +1,5 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const {fetchPages}=require('./lib/senuri.cjs');
+const xml='<response><resultCode>00</resultCode><items><item><jobId>1</jobId></item></items></response>';
+test('API pages use at most two concurrent requests and collect all ten',async()=>{let active=0,max=0;const seen=[];const out=await fetchPages(async page=>{seen.push(page);max=Math.max(max,++active);await new Promise(r=>setTimeout(r,1));active--;return xml;});assert.equal(max,2);assert.equal(out.length,10);assert.deepEqual(seen,[1,2,3,4,5,6,7,8,9,10]);});
+test('failed page or API error stops publication instead of dropping jobs',async()=>{for(const failed of [async()=>{throw Error('timeout');},async()=>'<resultCode>30</resultCode>',async()=>'<html>error</html>'])await assert.rejects(fetchPages(async n=>n===2?failed():xml));});
+test('valid empty source cannot replace previous data',async()=>{await assert.rejects(fetchPages(async()=>'<resultCode>00</resultCode><items/>'));});

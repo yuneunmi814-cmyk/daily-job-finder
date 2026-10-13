@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const {collectBatches} = require('./lib/collection.cjs');
+const {fetchPages} = require('./lib/senuri.cjs');
 
 // .env 로드 (의존성 없이)
 const envPath = path.join(__dirname, '.env');
@@ -139,12 +140,11 @@ async function enrichOpenJobs(jobs, { budget = 300, concurrency = 3, pauseMs = 1
 }
 
 async function fetchSenuri() {
-  const pages = await Promise.all(
-    Array.from({ length: PAGES }, (_, i) =>
-      getText(`${SENURI}/getJobList?serviceKey=${KEY}&numOfRows=1000&pageNo=${i + 1}`)
-        .catch(() => '')
-    )
-  );
+  const pages = await fetchPages(async page=>{
+    const r=await fetch(`${SENURI}/getJobList?serviceKey=${KEY}&numOfRows=1000&pageNo=${page}`,{signal:AbortSignal.timeout(60000)});
+    if(!r.ok)throw Error(`노인일자리 HTTP ${r.status} — 기존 자료 유지`);
+    return r.text();
+  },{pages:PAGES,concurrency:2});
   return pages.flatMap(parseItems).map(j => ({
     src: 'senuri',
     id: j.jobId,
@@ -540,7 +540,7 @@ let refreshing = null;
 function refresh() {
   if (refreshing) return refreshing;
   refreshing = Promise.all([
-    fetchSenuri().catch(e => { console.error('노인일자리 수집 실패:', e.message); return []; }),
+    fetchSenuri(),
     fetchCities(),
   ]).then(([senuri, city]) => {
     const jobs = [...city, ...senuri];   // 지역 공고를 앞에
@@ -654,7 +654,7 @@ async function crawlOnce(outPath, prevPath) {
   }
 
   const [senuri, city] = await Promise.all([
-    fetchSenuri().catch(e => { console.error('노인일자리 수집 실패:', e.message); return []; }),
+    fetchSenuri(),
     fetchCities(),
   ]);
   const jobs = [...city, ...senuri];
@@ -695,6 +695,7 @@ async function crawlOnce(outPath, prevPath) {
   console.error(JSON.stringify(payload.stats));
 }
 
+if (require.main === module) {
 if (process.env.CRAWL_OUT) {
   crawlOnce(process.env.CRAWL_OUT, process.env.CRAWL_PREV)
     .then(() => process.exit(0))
@@ -706,3 +707,6 @@ if (process.env.CRAWL_OUT) {
     setInterval(refresh, CACHE_MS);         // 이후 10분마다 갱신
   });
 }
+
+}
+module.exports={fetchSenuri,placeFromAddr};
